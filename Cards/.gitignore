@@ -1,0 +1,9 @@
+cat << 'EOF' >> .gitignore
+*.zip
+*.tar.gz
+*.npz
+*.npy
+*.pth
+*.pt
+*.onnx
+EOF
