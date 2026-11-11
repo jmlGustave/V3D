@@ -1,0 +1,12 @@
+*.zip
+*.tar.gz
+*.npz
+*.npy
+*.pth
+*.pt
+*.onnx
+*.bag
+*.db3
+__pycache__/
+*.py[cod]
+.DS_Store

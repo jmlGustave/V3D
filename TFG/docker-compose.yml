@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  # NVIDIA Isaac Sim
+  isaac_sim:
+    image: nvcr.io/nvidia/isaac-sim:6.2.0.1
+    container_name: tfg_isaac_sim
+    network_mode: "host"
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ACCEPT_EULA=Y
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Recomendado: Montar una carpeta local para guardar/cargar escenarios .usd
+      - ./escenarios_isaac:/isaac-workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, compute, video, utility]
+
+  # CONTENEDOR 2: ROS 2 Humble (Tu código y Nav2)
+  ros2_workspace:
+    image: osrf/ros:humble-desktop
+    container_name: tfg_ros2_core
+    network_mode: "host"
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - ROS_DOMAIN_ID=42
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      # Esta es tu carpeta de trabajo real en Arch Linux
+      - ./workspace_ros2:/colcon_ws
+    # Mantiene el contenedor vivo en segundo plano
+    command: /bin/bash -c "source /opt/ros/humble/setup.bash && tail -f /dev/null"
