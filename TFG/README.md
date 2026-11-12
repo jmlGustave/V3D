@@ -20,7 +20,7 @@ El sistema (representado gráficamente en [`Arquitectura.md`](./Arquitectura.md)
 
 ### 2.1. Capa de Hardware y Asignación de Recursos
 * **GPU (NVIDIA GeForce RTX 5060 Ti - 16 GB VRAM):** Asume una doble carga computacional concurrente: ejecuta el motor de renderizado con trazado de rayos en tiempo real (**RTX Real-Time 2.0**) en Omniverse y acelera mediante **TensorRT** la inferencia del pipeline de odometría visual neuronal (**Isaac cuVSLAM**).
-* **CPU (Intel Core Ultra):** Ejecuta en paralelo la extracción clásica de características ORB y optimización de grafos (**ORB-SLAM3**), el filtrado espacial de nubes de puntos (**PCL**) y los planificadores de trayectorias de **Nav2**.
+* **CPU (Intel Core Ultra - 20 hilos lógicos):** Ejecuta en paralelo la extracción clásica de características ORB y optimización de grafos (**ORB-SLAM3**), el filtrado espacial de nubes de puntos (**PCL**) y los planificadores de trayectorias de **Nav2**.
 * **Almacenamiento NVMe:** Garantiza la carga rápida de escenas complejas y activos `.usd` sin cuellos de botella de lectura/escritura.
 
 ### 2.2. Contenedor 1: Simulación Física y Sensorial (`tfg_isaac_sim`)
@@ -46,30 +46,46 @@ El sistema (representado gráficamente en [`Arquitectura.md`](./Arquitectura.md)
 
 ---
 
-## 3. Validación y Pruebas de Rendimiento Iniciales (Benchmarking de Hardware)
+## 3. Validación y Pruebas de Rendimiento (Benchmarking de Hardware)
 
-Se ha validado el despliegue de la arquitectura de contenedores sobre **Arch Linux (Kernel 7.1.9 / Hyprland)** ejecutando **Isaac Sim 6.2.0** con aceleración por hardware Vulkan y renderizado **RTX - Real-Time 2.0**:
+Se ha validado el rendimiento del sistema sobre **Arch Linux (Kernel 7.1.9 / Hyprland)** ejecutando **Isaac Sim 6.2.0** en contenedor Docker sobre una **NVIDIA GeForce RTX 5060 Ti (16 GB)** y procesador de **20 hilos lógicos** en dos escenarios clave:
 
-| Métrica | Resultado Obtenido | Observaciones |
+### 3.1. Escenario A: Renderizado Base del Gemelo Digital (Sin carga de cámaras ROS 2)
+Evaluación del visor interactivo con el modelo articulado cargado bajo el motor **RTX - Real-Time 2.0** a resolución `1280x720`:
+
+| Métrica | Valor Obtenido | Análisis Técnico |
 | :--- | :--- | :--- |
-| **GPU Activa** | NVIDIA GeForce RTX 5060 Ti (16 GB) | Drivers `615.78.08` (API Vulkan nativa en contenedor) |
-| **Tasa de Fotogramas (FPS)** | **110.13 FPS** | Simulación fluida por encima del umbral de tiempo real (60 Hz) |
-| **Tiempo de Frame (Frame Time)** | **8.20 ms** | Baja latencia de renderizado a resolución `1280x720` |
-| **Uso de VRAM (GPU)** | **888.8 MiB usados** (13.2 GiB disponibles) | Más del 80% de VRAM libre para carga de almacén e inferencia `cuVSLAM` |
-| **Uso de RAM (Sistema)** | **8.2 GiB usados** (50.8 GiB disponibles) | Margen holgado sobre los 64 GB DDR5 del sistema para el contenedor ROS 2 |
+| **Tasa de Fotogramas** | **110.13 FPS** | Muy superior al objetivo de 60 Hz en tiempo real |
+| **Frame Time Total** | **8.20 ms** | Latencia mínima de renderizado en el visor principal |
+| **Uso de VRAM (GPU)** | **888.8 MiB** | 13.2 GiB disponibles libres en la RTX 5060 Ti |
+| **Uso de RAM (Sistema)** | **8.2 GiB** | 50.8 GiB disponibles libres sobre los 64 GB DDR5 |
+
+### 3.2. Escenario B: Benchmark de Cámara Estéreo (`benchmark_camera` - 2 Cámaras HD)
+Ejecución del servicio oficial `isaacsim.benchmark.services` renderizando simultáneamente el par estéreo (`num_cameras: 2`) a resolución **1280x720** cada una durante 599 ciclos de actualización:
+
+| Métrica | Fase de Carga (*Loading*) | Fase de Simulación (*Benchmark*) | Análisis Técnico |
+| :--- | :--- | :--- | :--- |
+| **Tiempo de Ejecución** | 7836.99 ms | 9103.99 ms (599 *updates*) | Inicialización rápida con caché de *shaders* |
+| **FPS Medios (Mean FPS)** | — | **65.92 FPS** | Supera los 60 FPS requeridos para captura estéreo fluida |
+| **Real Time Factor (RTF)** | — | **1.098** | **Simulación >100% tiempo real** (sin dilatación temporal) |
+| **App Update Frametime** | — | **15.17 ms** (± 0.90 ms) | Rango muy estable (mín: 11.99 ms / máx: 19.37 ms) |
+| **Physics Frametime** | — | **0.27 ms** (± 0.07 ms) | Sobrecarga física despreciable en el bucle principal |
+| **Memoria GPU (VRAM)** | 1.407 GB | **2.100 GB** | Margen libre de ~13.9 GB de VRAM para `cuVSLAM` y el almacén |
+| **Memoria RAM (RSS / USS)** | 8.268 GB / 6.041 GB | **8.307 GB / 6.236 GB** | Consumo de memoria del sistema completamente plano |
+| **Carga de CPU (20 hilos)** | — | **249.38%** (± 36.51%) | Uso medio de ~2.5 núcleos de los 20 disponibles (máx: 355.7%) |
+
+**Conclusión de viabilidad:** Al activar el renderizado dual de cámaras estéreo a 720p, el sistema mantiene un **Real Time Factor de 1.098 (65.92 FPS)** consumiendo únicamente **2.1 GB de VRAM** y alrededor de **2.5 hilos de CPU**, garantizando recursos holgados para ejecutar en paralelo `ORB-SLAM3`, `Isaac cuVSLAM` y `Nav2` sin cuellos de botella.
 
 ---
 
 ## 4. Instrucciones de Despliegue Rápido
 
 ```bash
-# 1. Autorizar conexiones gráficas locales al servidor Xwayland
+
 xhost +local:
 
-# 2. Levantar los contenedores de simulación y ROS 2 en segundo plano
 docker-compose up -d
 
-# 3. Acceder al contenedor de Isaac Sim y lanzar la interfaz gráfica
 docker exec -it tfg_isaac_sim bash
 cd /isaac-sim
 ./isaac-sim.sh --/app/window/enabled=true --/app/window/hideUi=false --/app/window/width=1280 --/app/window/height=720
