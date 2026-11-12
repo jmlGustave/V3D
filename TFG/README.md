@@ -55,7 +55,7 @@ Evaluación del visor interactivo con el modelo articulado cargado bajo el motor
 
 | Métrica | Valor Obtenido | Análisis Técnico |
 | :--- | :--- | :--- |
-| **Tasa de Fotogramas** | **110.13 FPS** | Muy superior al objetivo de 60 Hz en tiempo real |
+| **Tasa de Fotogramas** | **110.13 FPS** | Casi 4 veces por encima del umbral de captura de sensores (30 Hz) |
 | **Frame Time Total** | **8.20 ms** | Latencia mínima de renderizado en el visor principal |
 | **Uso de VRAM (GPU)** | **888.8 MiB** | 13.2 GiB disponibles libres en la RTX 5060 Ti |
 | **Uso de RAM (Sistema)** | **8.2 GiB** | 50.8 GiB disponibles libres sobre los 64 GB DDR5 |
@@ -66,15 +66,15 @@ Ejecución del servicio oficial `isaacsim.benchmark.services` renderizando simul
 | Métrica | Fase de Carga (*Loading*) | Fase de Simulación (*Benchmark*) | Análisis Técnico |
 | :--- | :--- | :--- | :--- |
 | **Tiempo de Ejecución** | 7836.99 ms | 9103.99 ms (599 *updates*) | Inicialización rápida con caché de *shaders* |
-| **FPS Medios (Mean FPS)** | — | **65.92 FPS** | Supera los 60 FPS requeridos para captura estéreo fluida |
-| **Real Time Factor (RTF)** | — | **1.098** | **Simulación >100% tiempo real** (sin dilatación temporal) |
-| **App Update Frametime** | — | **15.17 ms** (± 0.90 ms) | Rango muy estable (mín: 11.99 ms / máx: 19.37 ms) |
+| **FPS Medios (Mean FPS)** | — | **65.92 FPS** | **>2x sobre el estándar de 30 FPS** requerido en SLAM estéreo |
+| **Real Time Factor (RTF)** | — | **1.098** | **Simulación >100% tiempo real** (sobre tick físico de 60 Hz) |
+| **App Update Frametime** | — | **15.17 ms** (± 0.90 ms) | Muy por debajo del presupuesto de 33.3 ms por frame (30 FPS) |
 | **Physics Frametime** | — | **0.27 ms** (± 0.07 ms) | Sobrecarga física despreciable en el bucle principal |
 | **Memoria GPU (VRAM)** | 1.407 GB | **2.100 GB** | Margen libre de ~13.9 GB de VRAM para `cuVSLAM` y el almacén |
 | **Memoria RAM (RSS / USS)** | 8.268 GB / 6.041 GB | **8.307 GB / 6.236 GB** | Consumo de memoria del sistema completamente plano |
 | **Carga de CPU (20 hilos)** | — | **249.38%** (± 36.51%) | Uso medio de ~2.5 núcleos de los 20 disponibles (máx: 355.7%) |
 
-**Conclusión de viabilidad:** Al activar el renderizado dual de cámaras estéreo a 720p, el sistema mantiene un **Real Time Factor de 1.098 (65.92 FPS)** consumiendo únicamente **2.1 GB de VRAM** y alrededor de **2.5 hilos de CPU**, garantizando recursos holgados para ejecutar en paralelo `ORB-SLAM3`, `Isaac cuVSLAM` y `Nav2` sin cuellos de botella.
+**Conclusión de viabilidad:** Mientras que un sistema de visión estéreo estándar requiere **30 FPS (33.3 ms por frame)** para garantizar el seguimiento de características sin pérdida de *tracking*, el banco de pruebas renderiza ambas cámaras HD a **65.92 FPS (15.17 ms)** manteniendo un **Real Time Factor de 1.098**. Esto deja más de un 50% de margen temporal y **13.9 GB de VRAM libres** para absorber la carga geométrica del almacén completo y la ejecución simultánea de `ORB-SLAM3`, `Isaac cuVSLAM` y `Nav2`.
 
 ---
 
