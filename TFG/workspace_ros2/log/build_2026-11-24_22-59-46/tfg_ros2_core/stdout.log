@@ -1,0 +1,14 @@
+running develop
+running egg_info
+writing tfg_ros2_core.egg-info/PKG-INFO
+writing dependency_links to tfg_ros2_core.egg-info/dependency_links.txt
+writing entry points to tfg_ros2_core.egg-info/entry_points.txt
+writing requirements to tfg_ros2_core.egg-info/requires.txt
+writing top-level names to tfg_ros2_core.egg-info/top_level.txt
+reading manifest file 'tfg_ros2_core.egg-info/SOURCES.txt'
+writing manifest file 'tfg_ros2_core.egg-info/SOURCES.txt'
+running build_ext
+Creating /colcon_ws/install/tfg_ros2_core/lib/python3.10/site-packages/tfg-ros2-core.egg-link (link to .)
+
+Installed /colcon_ws/build/tfg_ros2_core
+running symlink_data
