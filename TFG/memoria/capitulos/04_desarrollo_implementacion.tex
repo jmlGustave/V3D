@@ -1,0 +1,112 @@
+\chapter{Desarrollo e implementación del sistema}
+\label{sec:desarrollo}
+
+\section{Base del espacio de trabajo ROS~2: paquete \texttt{tfg\_ros2\_core}}
+\label{sec:tfg_ros2_core}
+
+La integración del entorno de percepción y control se ha iniciado desde un espacio de trabajo vacío en \texttt{workspace\_ros2/src/}, montado sobre \texttt{/colcon\_ws/src/} dentro del contenedor \texttt{tfg\_ros2\_core}. Reutilizar el identificador \texttt{tfg\_ros2\_core} tanto para el contenedor de Docker como para el paquete principal de ROS~2 no genera colisiones técnicas porque ambas herramientas operan en capas independientes, aunque exige distinguir claramente las órdenes de gestión del contenedor de los comandos propios de \texttt{colcon}.
+
+\subsection{Migración del paquete de \texttt{ament\_python} a \texttt{ament\_cmake} (C++17)}
+\label{sec:estructura_paquete}
+
+El arranque inicial del paquete empleó \texttt{ament\_python} con siete archivos mínimos (\texttt{package.xml}, \texttt{setup.py}, \texttt{setup.cfg}, \texttt{resource/tfg\_ros2\_core}, \texttt{tfg\_ros2\_core/\_\_init\_\_.py}, \texttt{config/sim\_teleop.yaml} y \texttt{launch/teleop\_base.launch.py}) para validar la propagación de \texttt{use\_sim\_time:=true} y la teleoperación básica sin introducir reglas CMake prematuras. En aquella fase se había contemplado aislar los futuros nodos nativos en un paquete separado para evitar un esquema híbrido. Sin embargo, al diseñar las utilidades de diagnóstico del Paso~1 ---que operan directamente sobre las corrientes estéreo sincronizadas y el registro de trayectorias en disco--- resultó más práctico consolidar el paquete completo en \texttt{ament\_cmake} bajo C++17 estricto en lugar de mantener dos descriptores paralelos o recurrir a \texttt{ament\_cmake\_python} cuando el código Python queda limitado a los ficheros \textit{launch}.
+
+En consecuencia, se eliminaron los artefactos específicos de Python (\texttt{setup.py}, \texttt{setup.cfg}, el directorio \texttt{resource/} junto con \texttt{resource/tfg\_ros2\_core} y la carpeta \texttt{tfg\_ros2\_core/} con \texttt{\_\_init\_\_.py}), manteniendo intactos \texttt{launch/teleop\_base.launch.py} y \texttt{config/sim\_teleop.yaml}. El nuevo archivo \texttt{CMakeLists.txt} fija el estándar C++17 sin extensiones de compilador (\texttt{CMAKE\_CXX\_EXTENSIONS OFF}) con advertencias estrictas (\texttt{-Wall -Wextra -Wpedantic}), resuelve mediante \texttt{find\_package} las dependencias \texttt{ament\_cmake}, \texttt{rclcpp}, \texttt{sensor\_msgs}, \texttt{nav\_msgs}, \texttt{geometry\_msgs} y \texttt{message\_filters}, e instala los ejecutables \texttt{stereo\_sync\_monitor} y \texttt{tum\_trajectory\_logger} en \texttt{lib/tfg\_ros2\_core}. Las carpetas \texttt{launch/} y \texttt{config/} se instalan en \texttt{share/tfg\_ros2\_core}, mientras que \texttt{scripts/} se copia con la opción \texttt{USE\_SOURCE\_PERMISSIONS} para conservar el bit ejecutable del guion de grabación.
+
+De forma paralela, \texttt{package.xml} (formato~\num{3}) mantiene la autoría y la licencia MIT originales sustituyendo el tipo de construcción por \texttt{ament\_cmake} y declarando tanto las dependencias de compilación y enlace como las dependencias de ejecución (\texttt{ament\_index\_python}, \texttt{launch}, \texttt{launch\_ros}, \texttt{teleop\_twist\_keyboard} y \texttt{rviz2}). Por último, se amplió \texttt{.gitignore} conservando las reglas previas y añadiendo \texttt{workspace\_ros2/build/}, \texttt{workspace\_ros2/install/}, \texttt{workspace\_ros2/log/}, \texttt{workspace\_ros2/bags/} y \texttt{bags/} para evitar el versionado accidental de compilaciones o capturas \texttt{rosbag2}.
+
+\subsection{Propagación de \texttt{use\_sim\_time:=true}}
+\label{sec:use_sim_time}
+
+Un requisito transversal del proyecto establece que todo nodo de ROS~2 debe operar sincronizado con el reloj de simulación publicado por Isaac Sim en \texttt{/clock}, evitando mezclar marcas temporales del sistema operativo Linux con marcas simuladas. Para garantizar este comportamiento tanto en lanzamientos completos como en ejecuciones aisladas por terminal, se diseñó un esquema dual sin conflictos de precedencia.
+
+Para las ejecuciones directas mediante \texttt{ros2 run} se definió \texttt{config/sim\_teleop.yaml} bajo el selector comodín \texttt{/**}, asignando \texttt{use\_sim\_time: true} con independencia del nombre del nodo lanzado. Por otra parte, \texttt{launch/teleop\_base.launch.py} declara el argumento \texttt{use\_sim\_time} con valor por defecto \texttt{'true'} y lo propaga de forma global mediante \texttt{SetParameter(name='use\_sim\_time', value=LaunchConfiguration('use\_sim\_time'))}.
+
+En la versión de \texttt{launch\_ros} incluida en ROS~2 Humble, \texttt{SetParameter} requiere una sustitución de texto directa en lugar de un objeto \texttt{ParameterValue}, ya que \texttt{evaluate\_parameter\_dict} interpreta internamente las cadenas \texttt{'true'} y \texttt{'false'} a través de \texttt{yaml.safe\_load} para convertirlas en booleanos nativos. Asimismo, la definición del nodo de teleoperación dentro del archivo de lanzamiento evita cargar \texttt{sim\_teleop.yaml} en su lista local de parámetros: dado que \texttt{Node} aplica sus parámetros locales después de \texttt{global\_params}, cargar un YAML con el valor fijo a verdadero sobrescribiría cualquier intento de lanzar el sistema con \texttt{use\_sim\_time:=false} desde la línea de comandos.
+
+En el nuevo guion \texttt{launch/step1\_monitor.launch.py}, encargado de coordinar los dos nodos C++17 y el visor RViz2, se aplicó una doble propagación para cubrir cualquier diferencia de precedencia entre nodos propios y externos. Además de declarar \texttt{SetParameter(name='use\_sim\_time', value=LaunchConfiguration('use\_sim\_time'))}, cada acción \texttt{Node} (\texttt{stereo\_sync\_monitor}, \texttt{tum\_trajectory\_logger} y \texttt{rviz2}) recibe explícitamente \texttt{'use\_sim\_time': ParameterValue(LaunchConfiguration('use\_sim\_time'), value\_type=bool)} dentro de su diccionario \texttt{parameters}, garantizando la conversión tipada a booleano en los tres procesos.
+
+\subsection{Base de teleoperación en \texttt{/cmd\_vel} y hallazgos prácticos}
+\label{sec:teleop_cmd_vel}
+
+El control manual inicial del TurtleBot3 en simulación emplea el paquete estándar \texttt{teleop\_twist\_keyboard}, que publica por defecto mensajes \texttt{geometry\_msgs/msg/Twist} sin marca temporal (\texttt{stamped:=false}) en el tópico \texttt{/cmd\_vel}. Este contrato coincide de forma directa con la entrada del bloque \texttt{ROS2SubscribeTwist} en Isaac Sim~6.2, que transforma las componentes \texttt{linear.x} y \texttt{angular.z} en consignas para el controlador diferencial del robot.
+
+Durante la puesta en marcha dentro de \texttt{tfg\_ros2\_core} aparecieron dos limitaciones prácticas derivadas del diseño interno de \texttt{teleop\_twist\_keyboard} que condicionaron la implementación final:
+
+\begin{enumerate}
+  \item \textbf{Dependencia de terminal interactiva (\texttt{stdin}):} el nodo lee pulsaciones en crudo mediante \texttt{termios} desde la entrada estándar. Como \texttt{ros2 launch} redirige \texttt{stdin} incluso cuando se activa \texttt{emulate\_tty=True} (opción que solo afecta a la salida por pantalla), arrancar el nodo directamente como un proceso plano provoca un error de descriptor (\textit{Inappropriate ioctl for device}). Por ello se fijó el argumento \texttt{launch\_teleop:=false} por defecto para ejecutar la teleoperación en una terminal dedicada con \texttt{ros2 run} y el archivo YAML del paquete, dejando la opción \texttt{launch\_teleop:=true} con prefijo \texttt{xterm -e} únicamente para entornos con servidor X11 activo.
+  \item \textbf{Bloqueo de servicios de parámetros sin bucle \texttt{spin}:} el bucle principal de \texttt{teleop\_twist\_keyboard} queda retenido en \texttt{getKey()} esperando pulsaciones del usuario sin ejecutar \texttt{rclpy.spin()}. En consecuencia, las consultas de servicio como \texttt{ros2 param get} pueden agotar el tiempo de espera aunque el parámetro esté cargado. Para verificar de forma determinista que \texttt{use\_sim\_time: true} se ha aplicado sin depender de \texttt{spin}, se comprobó la creación automática de la suscripción interna al tópico \texttt{/clock} mediante \texttt{ros2 node info} y \texttt{ros2 topic info /clock --verbose}.
+\end{enumerate}
+
+Conviene señalar también que el mapeado por defecto de \texttt{teleop\_twist\_keyboard} utiliza el bloque \texttt{u/i/o/j/k/l/m/,/.} para el movimiento y reserva \texttt{w/x} para escalar la velocidad lineal en incrementos del \qty{10}{\percent} (reducción por factor \num{0.9} al pulsar \texttt{x}), a diferencia de un control literal con teclas \texttt{WASD}.
+
+\positrevision{Decidir si resulta práctico mantener \texttt{teleop\_twist\_keyboard} estándar durante las pruebas iniciales o programar en \texttt{tfg\_ros2\_core} un nodo Python propio con mapeado directo \texttt{W/A/S/D} y límites de velocidad preconfigurados para el TurtleBot3.}
+
+\subsection{Infraestructura del Paso~1: monitorización estéreo, registro TUM y \texttt{rosbag2}}
+\label{sec:infraestructura_paso1}
+
+Antes de conectar las corrientes de imagen y odometría desde Isaac Sim~6.2, se implementó en \texttt{tfg\_ros2\_core} la base de verificación sensorial y captura reproducible del Paso~1. La Tabla~\ref{tab:componentes_paso1} resume las cinco piezas añadidas junto con sus tópicos y parámetros principales.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Componentes de monitorización, visualización y registro del Paso~1 en \texttt{tfg\_ros2\_core}.}
+  \label{tab:componentes_paso1}
+  \begin{tabular}{llp{5.6cm}}
+    \toprule
+    Componente & Tipo / ubicación & Tópicos o parámetros principales \\
+    \midrule
+    \texttt{stereo\_sync\_monitor} & Nodo C++17 (\texttt{src/}) & \texttt{/camera/\{left,right\}/image\_raw}, \texttt{camera\_info}, \texttt{sync\_queue\_size} (\num{20}). \\
+    \texttt{tum\_trajectory\_logger} & Nodo C++17 (\texttt{src/}) & \texttt{odom\_topic} (\texttt{/ground\_truth/odom}), \texttt{output\_file} (\texttt{trajectory\_gt.tum}). \\
+    \texttt{step1\_monitor.launch.py} & Launch Python (\texttt{launch/}) & \texttt{use\_sim\_time} (\texttt{true}), \texttt{record\_gt} (\texttt{false}), \texttt{use\_rviz} (\texttt{true}). \\
+    \texttt{tfg\_monitor.rviz} & Perfil RViz2 (\texttt{config/}) & Marco fijo \texttt{odom}; \texttt{Grid}, \texttt{TF}, \texttt{Odometry} y dos \texttt{Image}. \\
+    \texttt{record\_benchmark\_bag.sh} & Script Bash (\texttt{scripts/}) & Graba \num{8} tópicos de referencia en \texttt{rosbag2} bajo directorio configurable. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El nodo \texttt{stereo\_sync\_monitor} (\texttt{src/stereo\_sync\_monitor.cpp}) supervisa la calidad del par estéreo antes de alimentar los algoritmos de SLAM. En ROS~2 Humble, la librería \texttt{message\_filters} distribuye únicamente cabeceras \texttt{.h} (\texttt{subscriber.h}, \texttt{synchronizer.h} y \texttt{sync\_policies/approximate\_time.h}), por lo que emplear la extensión \texttt{.hpp} habitual de otros paquetes provoca errores de compilación. Sus cuatro suscriptores sincronizados mediante \texttt{ApproximateTime} utilizan el perfil QoS \texttt{rmw\_qos\_profile\_sensor\_data} con profundidad configurada por \texttt{sync\_queue\_size} (valor \num{20} por defecto, acotado a un mínimo seguro de~\num{1}); al suscribirse con fiabilidad \textit{BestEffort}, el nodo enlaza tanto con publicadores \textit{Reliable} como con publicadores \textit{BestEffort} procedentes de Isaac Sim.
+
+Para diagnosticar el estado del enlace incluso cuando \texttt{/clock} o las cámaras están detenidos, \texttt{stereo\_sync\_monitor} ejecuta un temporizador en tiempo real (\texttt{create\_wall\_timer}) cada \qty{2}{\second} e informa \qty{0.00}{\hertz} mientras no recibe pares sincronizados. Al registrar pares en la ventana, calcula la tasa real a partir del incremento de \texttt{this->now()} siempre que ambos instantes sean positivos, pertenezcan al mismo tipo de reloj y den un delta positivo ---filtrando así el salto inicial de cero al reloj simulado o posibles reinicios de escena---, y conmuta a \texttt{std::chrono::steady\_clock} como respaldo cuando el reloj ROS no avanza. En cada ciclo verifica además que las dos imágenes y los dos mensajes \texttt{CameraInfo} mantengan una resolución de \num{1280}\(\times\)\num{720}~píxeles, mide el desfase temporal máximo entre \texttt{left\_img} y \texttt{right\_img} en milisegundos y calcula el \textit{baseline} en metros desde la matriz de proyección derecha mediante \(-P[3]/P[0]\), bloqueando la división si \(|P[0]| < \num{1e-6}\) o aparecen valores no finitos y emitiendo avisos diferenciados si el resultado es \(\le \qty{0.0}{\meter}\), queda fuera del rango físico \([\qty{0.01}{\meter}, \qty{0.50}{\meter}]\) o se sale del intervalo objetivo \([\qty{0.06}{\meter}, \qty{0.10}{\meter}]\) previsto para el TurtleBot3.
+
+Por su parte, \texttt{tum\_trajectory\_logger} (\texttt{src/tum\_trajectory\_logger.cpp}) suscribe el tópico definido en \texttt{odom\_topic} (\texttt{/ground\_truth/odom} por defecto, con cola \texttt{KeepLast(100)}) y registra las poses recibidas en \texttt{output\_file} (\texttt{trajectory\_gt.tum} por defecto). Al iniciar crea los directorios padre inexistentes mediante \texttt{std::filesystem::create\_directories}, abre el archivo en modo truncado y escribe la cabecera \texttt{\# timestamp tx ty tz qx qy qz qw}. Para evitar que la conversión a coma flotante de \num{64}~bits redondee instantes elevados y altere la correspondencia temporal dentro de \texttt{evo}, la marca de tiempo se compone directamente a partir de los campos enteros \texttt{sec} y \texttt{nanosec}, este último rellenado a nueve dígitos con ceros a la izquierda, seguidos de las tres coordenadas de posición y las cuatro componentes del cuaternión con nueve decimales fijos. El flujo vacía el búfer cada \num{30}~mensajes y se cierra de forma ordenada en el destructor del nodo antes de \texttt{rclcpp::shutdown()}, dejando constancia del número total de poses almacenadas.
+
+La orquestación visual y de captura recae en tres archivos complementarios. El lanzador \texttt{launch/step1\_monitor.launch.py} arranca de forma incondicional \texttt{stereo\_sync\_monitor}, habilita bajo el argumento \texttt{record\_gt} el registro TUM con \texttt{odom\_topic} y \texttt{output\_file} configurables, y lanza opcionalmente \texttt{rviz2} bajo \texttt{use\_rviz} cargando \texttt{config/tfg\_monitor.rviz} mediante \texttt{PathJoinSubstitution} y \texttt{FindPackageShare}. Dicho perfil RViz2 establece \texttt{odom} como marco fijo a \qty{30}{\hertz} e incluye visualizadores de rejilla (\texttt{Grid}), transformadas (\texttt{TF}), odometría sobre \texttt{/ground\_truth/odom} y las dos imágenes en crudo de las cámaras izquierda y derecha. Finalmente, el script ejecutable \texttt{scripts/record\_benchmark\_bag.sh} (\texttt{set -euo pipefail}) acepta un directorio base opcional (\texttt{bags} por defecto), comprueba la disponibilidad de \texttt{ros2} en el entorno y graba mediante \texttt{exec ros2 bag record} exactamente ocho tópicos (\texttt{/clock}, \texttt{/camera/left/image\_raw}, \texttt{/camera/left/camera\_info}, \texttt{/camera/right/image\_raw}, \texttt{/camera/right/camera\_info}, \texttt{/tf}, \texttt{/tf\_static} y \texttt{/ground\_truth/odom}) para que \texttt{ORB-SLAM3} e \texttt{Isaac cuVSLAM} puedan evaluarse sobre exactamente la misma secuencia grabada.
+
+\subsection{Verificación del Hito~1 en ROS~2 Humble y estado de compilación}
+\label{sec:verificacion_hito1}
+
+En la iteración inicial en \texttt{ament\_python}, antes de compilar dentro de la imagen base \texttt{osrf/ros:humble-desktop}, fue necesario instalar \texttt{python3-colcon-common-extensions} y \texttt{ros-humble-teleop-twist-keyboard}, ausentes en la distribución mínima del contenedor. En aquella etapa, \texttt{colcon build --packages-select tfg\_ros2\_core --symlink-install} completó la compilación en \qty{0.47}{\second} (\qty{0.55}{\second} en el resumen total de la segunda ejecución verificada), y la prueba posterior con \texttt{teleop\_base.launch.py} y \texttt{teleop\_twist\_keyboard} en dos terminales confirmó la suscripción a \texttt{/clock} y la publicación de mensajes \texttt{Twist} en \texttt{/cmd\_vel}.
+
+Tras la migración a \texttt{ament\_cmake} y C++17 se ejecutaron primero las comprobaciones estáticas y locales sobre los nuevos archivos del paquete, todas con código de salida cero: validación XML de \texttt{package.xml}, análisis del árbol sintáctico de \texttt{step1\_monitor.launch.py} con \texttt{python3 -m ast}, validación YAML de \texttt{tfg\_monitor.rviz} con \texttt{yaml.safe\_load}, comprobación de permisos (\texttt{-rwxr-xr-x}), sintaxis (\texttt{bash -n}), ayuda (\texttt{--help}) y ejecución simulada (\textit{dry-run}) de \texttt{record\_benchmark\_bag.sh}, además de la compilación estricta de \texttt{stereo\_sync\_monitor.cpp} y \texttt{tum\_trajectory\_logger.cpp} mediante \texttt{g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror -Wshadow} sobre cabeceras auxiliares equivalentes a ROS~2 Humble.
+
+A continuación, dado que las carpetas previas \texttt{workspace\_ros2/build/}, \texttt{install/} y \texttt{log/} heredadas de \texttt{ament\_python} pertenecían en disco a \texttt{root}/\texttt{nobody}, se purgaron desde dentro del contenedor \texttt{tfg\_ros2\_core} antes de compilar en limpio. Una vez eliminados esos directorios, la orden \texttt{colcon build --packages-select tfg\_ros2\_core} completó la compilación sin errores ni advertencias en \qty{6.69}{\second} (\qty{6.82}{\second} en el resumen global) y el listado \texttt{ros2 pkg executables tfg\_ros2\_core} confirmó la generación de ambos binarios nativos (\texttt{stereo\_sync\_monitor} y \texttt{tum\_trajectory\_logger}).
+
+\positdato{Registrar la comprobación de los ficheros y permisos instalados en \texttt{share/tfg\_ros2\_core/\{launch,config,scripts\}} (incluido el bit ejecutable de \texttt{record\_benchmark\_bag.sh}), la prueba de humo de \qty{3}{\second} de \texttt{step1\_monitor.launch.py} y \texttt{teleop\_base.launch.py}, y las salidas en vivo tras conectar Isaac Sim (\texttt{/clock}, \texttt{stereo\_sync\_monitor} y \texttt{ros2 topic hz}).}
+
+\section{Puente ROS~2 en Isaac Sim~6.2, reloj y árbol \texttt{/tf}}
+\label{sec:puente_isaac_tf}
+
+Esta sección documentará la configuración del grafo OmniGraph en NVIDIA Isaac Sim~6.2 para exponer \texttt{/clock} (\texttt{IsaacReadSimulationTime} conectado a \texttt{ROS2PublishClock}), la recepción de consignas diferenciales en \texttt{/cmd\_vel} y la coherencia completa de la cadena de transformadas \texttt{odom} $\rightarrow$ \texttt{base\_link} $\rightarrow$ \texttt{camera\_left\_link} / \texttt{camera\_right\_link}.
+
+\positinconcluso{Desarrollar en el Hito~2 tras alinear \texttt{ROS\_DOMAIN\_ID=42} en \texttt{tfg\_isaac\_sim}, construir la escena base en \texttt{escenarios\_isaac/} y validar el árbol cinemático con \texttt{tf2\_tools}.}
+
+\section{Par estéreo, calibración y preprocesamiento de nubes}
+\label{sec:par_estereo}
+
+Se recogerá aquí la parametrización del par estéreo a \num{1280}\(\times\)\num{720}~píxeles y \qty{30}{\hertz} en \texttt{/camera/left/*} y \texttt{/camera/right/*}, verificando el valor exacto del \textit{baseline} en la matriz de proyección $P$ de la cámara derecha, así como la sincronización temporal mediante \texttt{message\_filters} y el filtrado espacial con \texttt{PCL VoxelGrid}. El nodo \texttt{stereo\_sync\_monitor} descrito en la Sección~\ref{sec:infraestructura_paso1} deja ya automatizada la comprobación en línea de dicha sincronización y del \textit{baseline} a la espera de recibir tramas reales del simulador.
+
+\positinconcluso{Redactar en el Hito~3 junto con los cálculos de calibración intrínseca/extrínseca y la tabla de frecuencias medidas con \texttt{ros2 topic hz}.}
+
+\section{Despliegue de \texttt{ORB-SLAM3} e \texttt{Isaac cuVSLAM}}
+\label{sec:despliegue_slam}
+
+Se detallarán los archivos de configuración, vocabularios, remapeos de tópicos y parámetros de lanzamiento bajo \texttt{use\_sim\_time:=true} empleados para ejecutar ambos algoritmos de SLAM visual en igualdad de condiciones sensoriales.
+
+\positinconcluso{Completar cuando ambos módulos de SLAM estén integrados dentro del flujo de \texttt{tfg\_ros2\_core}.}
+
+\section{Integración con \texttt{Nav2} y registro en \texttt{rosbag2}}
+\label{sec:nav2_rosbag2}
+
+Este bloque cubrirá el ajuste de mapas de coste, la conexión del lazo autónomo con \texttt{Nav2} y los guiones de grabación sincronizada en \texttt{rosbag2} incluyendo \texttt{/ground\_truth/odom} para la evaluación posterior.
+
+\positinconcluso{Completar en las iteraciones finales de navegación autónoma y captura de secuencias de evaluación.}

@@ -1,0 +1,102 @@
+% ==============================================================================
+% Configuración de paquetes LaTeX para la memoria del TFG (UPV)
+% ==============================================================================
+
+% --- Codificación, fuentes e idioma ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\IfFileExists{spanish.ldf}{%
+  \usepackage[spanish, es-tabla]{babel}% 'es-tabla' fuerza "Tabla" en lugar de "Cuadro"
+}{%
+  \usepackage{babel}%
+  \babelprovide[import, main]{spanish}%
+  \addto\captionsspanish{\renewcommand{\tablename}{Tabla}}%
+}
+\usepackage{csquotes}                 % Requerido por biblatex junto a babel
+\usepackage{microtype}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Geometría de página ---
+% Margen derecho ampliado para alojar pósits laterales durante el borrador.
+% Para la entrega final (con todonotes en modo disable), puede cambiarse a:
+% \usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage[
+  a4paper,
+  top=2.5cm,
+  bottom=2.5cm,
+  left=2.5cm,
+  right=3.4cm,
+  marginparwidth=2.8cm,
+  marginparsep=0.3cm
+]{geometry}
+
+% --- Encabezados y pies de página ---
+\usepackage{fancyhdr}
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small TFG --- SLAM Visual en Isaac Sim y ROS 2}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% --- Matemáticas, tablas y unidades ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{
+  output-decimal-marker = {,},
+  per-mode = symbol,
+  uncertainty-mode = separate,
+  reset-text-series = false,
+  text-series-to-math = true
+}
+\DeclareSIUnit{\fps}{FPS}
+\DeclareSIUnit{\mebibyte}{MiB}
+\DeclareSIUnit{\gibibyte}{GiB}
+
+% --- Gráficos, colores y bloques de código ---
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{listings}
+
+\definecolor{codigoFondo}{HTML}{F7F7F7}
+\definecolor{codigoBorde}{HTML}{CCCCCC}
+\definecolor{codigoComentario}{HTML}{5C6370}
+\definecolor{codigoPalabra}{HTML}{005CC5}
+\definecolor{codigoCadena}{HTML}{22863A}
+
+\lstset{
+  backgroundcolor=\color{codigoFondo},
+  frame=single,
+  rulecolor=\color{codigoBorde},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codigoPalabra}\bfseries,
+  commentstyle=\color{codigoComentario}\itshape,
+  stringstyle=\color{codigoCadena},
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1 {ü}{{\"u}}1 {Ü}{{\"U}}1
+}
+
+% --- Bibliografía APA 7.ª edición (biblatex + biber) ---
+\usepackage[
+  backend=biber,
+  style=apa,
+  sorting=nyt
+]{biblatex}
+\addbibresource{bibliografia.bib}
+
+% --- Hipervínculos (cargado antes de posits.tex para compatibilidad con \listoftodos) ---
+\usepackage[hidelinks]{hyperref}

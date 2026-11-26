@@ -1,0 +1,21 @@
+\chapter{Conclusiones y líneas futuras}
+\label{sec:conclusiones}
+
+\section{Conclusiones}
+\label{sec:conclusiones_texto}
+
+Las conclusiones definitivas del trabajo se redactarán una vez completadas la integración completa entre NVIDIA Isaac Sim~6.2 y ROS~2 Humble y las campañas de evaluación cuantitativa entre \texttt{ORB-SLAM3} e \texttt{Isaac cuVSLAM}. Hasta el momento, el avance inicial demuestra que el hardware disponible sostiene el renderizado estéreo a \num{1280}\(\times\)\num{720}~píxeles muy por encima del umbral de \qty{30}{\hertz} y que la separación en contenedores con red compartida simplifica la puesta en marcha de \texttt{tfg\_ros2\_core} siempre que se mantenga alineado el identificador de dominio DDS.
+
+\positinconcluso{Completar las conclusiones finales sintetizando el compromiso medido entre precisión (ATE/RPE), carga de CPU/VRAM y viabilidad de transferencia \textit{Sim-to-Real} en TurtleBot3 y plataforma aérea.}
+
+\section{Líneas futuras de trabajo}
+\label{sec:lineas_futuras}
+
+A partir de las observaciones recogidas ya durante la fase inicial de desarrollo, quedan identificadas dos mejoras prácticas de infraestructura, junto con las ampliaciones experimentales pendientes de definición tras los resultados:
+
+\begin{itemize}
+  \item \textbf{Imagen Docker personalizada para \texttt{tfg\_ros2\_core}:} construir un \texttt{Dockerfile} propio a partir de \texttt{osrf/ros:humble-desktop} que incorpore de serie \texttt{colcon}, \texttt{teleop\_twist\_keyboard}, las librerías de SLAM, \texttt{Nav2} y \texttt{evo}, evitando reinstalaciones efímeras tras un \texttt{docker-compose down}.
+  \item \textbf{Teleoperación dedicada con mapeado \texttt{WASD}:} valorar el desarrollo de un nodo propio dentro de \texttt{tfg\_ros2\_core} adaptado al rango de velocidades del TurtleBot3 si las pruebas en entorno industrial lo requieren frente al esquema estándar de \texttt{teleop\_twist\_keyboard}.
+\end{itemize}
+
+\positrevision{Revisar y ampliar esta sección con nuevas líneas futuras (por ejemplo, fusión visual-inercial o navegación dinámica con obstáculos móviles) cuando se disponga de los resultados experimentales del Capítulo~\ref{sec:evaluacion}.}

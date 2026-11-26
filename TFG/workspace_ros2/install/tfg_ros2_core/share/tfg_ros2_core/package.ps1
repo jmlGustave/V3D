@@ -110,8 +110,7 @@ function colcon_package_source_powershell_script {
 # the prefix is two levels up from the package specific share directory
 $env:COLCON_CURRENT_PREFIX=(Get-Item $PSCommandPath).Directory.Parent.Parent.FullName
 
-colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX/share/tfg_ros2_core/hook/pythonpath.ps1"
-colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX/share/tfg_ros2_core/hook/ament_prefix_path.ps1"
-colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX/../../build/tfg_ros2_core/share/tfg_ros2_core/hook/pythonpath_develop.ps1"
+colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX/share/tfg_ros2_core/hook/cmake_prefix_path.ps1"
+colcon_package_source_powershell_script "$env:COLCON_CURRENT_PREFIX/share/tfg_ros2_core/local_setup.ps1"
 
 Remove-Item Env:\COLCON_CURRENT_PREFIX

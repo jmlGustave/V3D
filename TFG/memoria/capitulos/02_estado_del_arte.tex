@@ -1,0 +1,36 @@
+\chapter{Estado del arte y fundamentos técnicos}
+\label{sec:estado_arte}
+
+\section{SLAM visual estéreo: enfoque clásico frente a aceleración en GPU}
+\label{sec:slam_visual_fundamentos}
+
+El problema de localización y mapeo simultáneo mediante cámaras consiste en estimar la trayectoria de un sensor en movimiento al mismo tiempo que se reconstruye la geometría tridimensional de su entorno. En sistemas estéreo, el conocimiento de la distancia física entre las dos cámaras (\textit{baseline}) permite recuperar directamente la escala métrica de la escena mediante triangulación, evitando la ambigüedad de escala propia de las configuraciones monoculares.
+
+Dentro del enfoque geométrico clásico ejecutado en CPU, \textcite{campos2021orbslam3} proponen \texttt{ORB-SLAM3}, una arquitectura basada en la extracción de puntos característicos binarios ORB, seguimiento local de fotogramas clave (\textit{keyframes}), cierre de bucles y optimización no lineal mediante ajuste de haces (\textit{Bundle Adjustment}). Su principal fortaleza reside en la precisión métrica cuando el entorno ofrece textura suficiente y en su capacidad de gestionar múltiples mapas desconectados cuando el seguimiento se interrumpe temporalmente. Como contrapartida, la carga de cálculo crece con el número de puntos seguidos y el tamaño del mapa activo, compitiendo por los núcleos de CPU con otros procesos del robot como el filtrado de nubes de puntos o la planificación de trayectorias.
+
+Como alternativa orientada a aprovechar el paralelismo masivo de las tarjetas gráficas, \textcite{korovko2025cuvslam} presentan \texttt{cuVSLAM}, un sistema de odometría visual y mapeo acelerado en GPU mediante CUDA e integrado en el ecosistema de NVIDIA Isaac ROS. Al trasladar a la GPU las etapas intensivas de detección, emparejamiento y estimación de movimiento, este enfoque persigue mantener frecuencias estables a resoluciones altas liberando ciclos de CPU para tareas de control. Contrastar ambos planteamientos bajo un mismo escenario visual permite comprobar hasta qué punto la aceleración por hardware mantiene la precisión frente al ajuste global de \texttt{ORB-SLAM3} en pasillos repetitivos o zonas industriales con baja densidad de rasgos.
+
+\positinconcluso{Incorporar en este apartado la formulación matemática de la cámara estenopeica rectificada y la relación entre el \textit{baseline} $b$, la distancia focal $f_x$ y el elemento $P_{03} = -f_x \cdot b$ de la matriz de proyección derecha $P$ una vez se valide el par estéreo en el Hito~3.}
+
+\section{Middleware ROS~2, navegación autónoma y simulación fotorrealista}
+\label{sec:ros2_nav2_isaac}
+
+La comunicación entre sensores simulados, algoritmos de percepción y controladores de movimiento se articula sobre ROS~2 \parencite{macenski2022ros2}. Frente a la arquitectura centralizada en un maestro único de ROS~1, ROS~2 se apoya en el estándar DDS (\textit{Data Distribution Service}) para descubrir nodos de manera distribuida y configurar políticas de calidad de servicio (QoS) adaptadas a cada flujo de datos, como la transmisión de imágenes de alta frecuencia o el envío fiable de mapas y comandos de velocidad.
+
+Sobre esta base de comunicaciones opera \texttt{Nav2} \parencite{macenski2020nav2}, la pila estándar de navegación autónoma en ROS~2. Su arquitectura basada en árboles de comportamiento coordina servidores independientes para el mantenimiento de mapas de coste globales y locales, la planificación de rutas y el seguimiento de trayectorias mediante controladores que emiten consignas de velocidad lineal y angular en el tópico \texttt{/cmd\_vel}. Para cerrar el lazo sin disponer inicialmente del robot físico, el simulador NVIDIA Isaac Sim \parencite{nvidia_isaacsim} proporciona física rígida mediante PhysX, renderizado con trazado de rayos en tiempo real sobre OpenUSD y un puente nativo hacia ROS~2 basado en grafos reactivos (OmniGraph).
+
+\positcita{Verificar la fecha de consulta y la versión exacta de la documentación oficial de NVIDIA Isaac Sim~6.2 en \texttt{bibliografia.bib}, y valorar si conviene añadir referencias comparativas sobre otros simuladores robóticos como Gazebo o AirSim.}
+
+\section{Métricas cuantitativas de evaluación de trayectorias}
+\label{sec:metricas_evaluacion}
+
+Evaluar un sistema de SLAM visual exige medir dos aspectos complementarios: la coherencia global de toda la trayectoria recorrida y la deriva local acumulada entre instantes cercanos. Siguiendo el criterio establecido por \textcite{sturm2012benchmark}, estas propiedades se cuantifican mediante dos métricas estándar:
+
+\begin{itemize}
+  \item \textbf{Error Absoluto de Pose (ATE, \textit{Absolute Trajectory Error}):} mide la consistencia global comparando directamente la pose estimada frente a la trayectoria real de referencia tras alinear ambos sistemas de coordenadas mediante una transformación rígida. Es especialmente sensible a fallos de cierre de bucle o desviaciones acumuladas a lo largo del mapa.
+  \item \textbf{Error Relativo de Pose (RPE, \textit{Relative Pose Error}):} evalúa la deriva local midiendo la diferencia entre el desplazamiento relativo estimado y el desplazamiento real sobre intervalos fijos de tiempo o distancia, reflejando de forma directa la calidad de la odometría visual a corto plazo.
+\end{itemize}
+
+Para automatizar estos cálculos sobre grabaciones reproducibles en formato \texttt{rosbag2}, este proyecto utiliza la herramienta \texttt{evo} desarrollada por \textcite{grupp2017evo}, que permite alinear las trayectorias publicadas por \texttt{ORB-SLAM3} y \texttt{cuVSLAM} respecto a \texttt{/ground\_truth/odom} y extraer estadísticos como la raíz del error cuadrático medio (RMSE), la media y el error máximo.
+
+\positinconcluso{Ampliar el estado del arte con referencias específicas sobre evaluación de SLAM visual en entornos industriales con superficies poco texturizadas o iluminación variable.}

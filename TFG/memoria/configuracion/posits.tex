@@ -1,0 +1,52 @@
+% ==============================================================================
+% Sistema de pósits para tareas inconclusas y revisión personal (todonotes)
+% ==============================================================================
+
+% Para la entrega final sin pósits, comenta la primera línea y descomenta la segunda:
+\usepackage[colorinlistoftodos, textsize=footnotesize]{todonotes}
+% \usepackage[disable]{todonotes}
+
+% --- Paleta diferenciada por tipo de anotación ---
+\definecolor{positAmarilloBg}{HTML}{FFF3CD}
+\definecolor{positAmarilloBorde}{HTML}{D39E00}
+
+\definecolor{positAzulBg}{HTML}{DCEEFB}
+\definecolor{positAzulBorde}{HTML}{2B6CB0}
+
+\definecolor{positNaranjaBg}{HTML}{FFE8D6}
+\definecolor{positNaranjaBorde}{HTML}{D96B27}
+
+\definecolor{positVerdeBg}{HTML}{E2F3E8}
+\definecolor{positVerdeBorde}{HTML}{2F855A}
+
+% --- Comandos semánticos (sin caption={} para evitar conflictos en pgfkeys) ---
+% Uso: nunca colocar \positrevision ni \positcita (al margen) dentro de table,
+% figure o caption; en esos entornos pasar la opción [inline] o ubicarlos fuera.
+
+\newcommand{\positinconcluso}[2][]{%
+  \todo[inline, backgroundcolor=positAmarilloBg, bordercolor=positAmarilloBorde, linecolor=positAmarilloBorde, #1]{%
+    \textbf{[INCONCLUSO]} #2%
+  }%
+}
+
+\newcommand{\positrevision}[2][]{%
+  \todo[backgroundcolor=positAzulBg, bordercolor=positAzulBorde, linecolor=positAzulBorde, #1]{%
+    \textbf{[REVISIÓN]} #2%
+  }%
+}
+
+\newcommand{\positdato}[2][]{%
+  \todo[inline, backgroundcolor=positNaranjaBg, bordercolor=positNaranjaBorde, linecolor=positNaranjaBorde, #1]{%
+    \textbf{[DATO PENDIENTE DE MEDIR]} #2%
+  }%
+}
+
+\newcommand{\positcita}[2][]{%
+  \todo[backgroundcolor=positVerdeBg, bordercolor=positVerdeBorde, linecolor=positVerdeBorde, #1]{%
+    \textbf{[CITA APA]} #2%
+  }%
+}
+
+\newcommand{\listadeposits}{%
+  \listoftodos[Índice de pósits y tareas pendientes]%
+}

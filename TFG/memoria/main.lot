@@ -1,0 +1,11 @@
+\babel@toc {spanish}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Especificaciones del hardware de desarrollo y asignación de carga computacional.}}{6}{table.caption.13}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Resultados preliminares de rendimiento gráfico en Isaac Sim~6.2.0 sobre la RTX~5060~Ti.}}{8}{table.caption.16}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Componentes de monitorización, visualización y registro del Paso~1 en \texttt {tfg\_ros2\_core}.}}{12}{table.caption.19}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Plantilla comparativa de precisión y rendimiento entre \texttt {ORB-SLAM3} e \texttt {Isaac cuVSLAM}.}}{16}{table.caption.26}%
+\addvspace {10\p@ }

@@ -1,1 +1,31 @@
-/colcon_ws/build/tfg_ros2_core/package.xml
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+
+
+<package format="3">
+  <name>tfg_ros2_core</name>
+  <version>0.1.0</version>
+  <description>Paquete base ROS 2 Humble para orquestación, tiempo de simulación y teleoperación del TFG con Isaac Sim.</description>
+  <!-- Correo tomado de git log / git config del repositorio; sustitúyelo si prefieres tu correo UPV -->
+  <maintainer email="GustaveLumiere@proton.me">Javier Martínez López</maintainer>
+  <!-- Provisional: no existe archivo LICENSE en el repositorio; ajústalo al elegir licencia -->
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>message_filters</depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

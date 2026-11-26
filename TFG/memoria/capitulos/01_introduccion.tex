@@ -1,0 +1,31 @@
+\chapter{Introducción}
+\label{sec:introduccion}
+
+\section{Motivación y contexto del problema}
+\label{sec:motivacion}
+
+Comparar dos sistemas de localización y mapeo visual en un laboratorio real plantea un problema metodológico inmediato: resulta casi imposible repetir dos recorridos exactamente iguales bajo la misma iluminación, con idéntica velocidad del robot y con una trayectoria de referencia libre de deriva. Cuando se pretende contrastar un algoritmo clásico basado en CPU frente a una implementación acelerada por GPU, cualquier diferencia en el movimiento del operador o en los reflejos de la escena introduce ruido experimental que impide atribuir las variaciones de error al algoritmo evaluado.
+
+El uso de simuladores con renderizado físicamente realista permite aislar estas variables. Si el motor gráfico genera un flujo estéreo reproducible junto con una pose exacta de referencia en cada instante de simulación, es posible someter a ambos métodos de SLAM al mismo recorrido y medir tanto su precisión geométrica como la carga que imponen sobre el procesador y la tarjeta gráfica. En este trabajo se emplea NVIDIA Isaac Sim~6.2 como generador de física y sensores visuales conectado al ecosistema de ROS~2 Humble \parencite{macenski2022ros2}, con el propósito de reproducir escenarios de almacén industrial y espacios abiertos antes de validar los algoritmos sobre plataformas físicas del laboratorio de la Universitat Politècnica de València (UPV).
+
+\section{Objetivos del trabajo}
+\label{sec:objetivos}
+
+El objetivo general del proyecto consiste en construir una arquitectura modular de simulación y evaluación cuantitativa para comparar el comportamiento de \texttt{ORB-SLAM3} \parencite{campos2021orbslam3} y \texttt{NVIDIA Isaac cuVSLAM} \parencite{korovko2025cuvslam} integrados con el sistema de navegación autónoma \texttt{Nav2} \parencite{macenski2020nav2}. Este propósito se desglosa en los siguientes objetivos específicos:
+
+\begin{enumerate}
+  \item Desplegar un entorno reproducible basado en contenedores Docker que separe la simulación fotorrealista en Isaac Sim~6.2 del procesamiento en ROS~2 Humble, manteniendo sincronía temporal estricta mediante el reloj simulado (\texttt{/clock}) y el parámetro \texttt{use\_sim\_time:=true}.
+  \item Configurar la adquisición de un par estéreo sincronizado a \num{1280}\(\times\)\num{720} píxeles y \qty{30}{\hertz}, junto con un árbol de transformadas coherente y la publicación continua de la pose exacta de referencia en \texttt{/ground\_truth/odom}.
+  \item Integrar ambos algoritmos de SLAM visual (\texttt{ORB-SLAM3} en CPU e \texttt{Isaac cuVSLAM} en GPU) junto con filtrado espacial de nubes de puntos y el stack de navegación \texttt{Nav2} cerrado sobre \texttt{/cmd\_vel}.
+  \item Evaluar el compromiso entre precisión de trayectoria (métricas ATE y RPE con \texttt{evo}) y consumo real de CPU, VRAM y tasa de fotogramas sin interpolación artificial de imágenes.
+  \item Verificar la transferencia \textit{Sim-to-Real} en dos fases progresivas: primero sobre una plataforma diferencial TurtleBot3 (movimiento planar de tres grados de libertad) y, en una segunda etapa, sobre un vehículo aéreo no tripulado con seis grados de libertad.
+\end{enumerate}
+
+\positrevision{Revisar con el tutor el alcance definitivo de la Fase~2 sobre dron (6-DoF) respecto al calendario disponible y confirmar si la memoria debe incluir además capítulos específicos de planificación temporal y estudio económico según la normativa de la escuela.}
+
+\section{Estructura de la memoria}
+\label{sec:estructura_memoria}
+
+El documento se organiza en seis capítulos siguiendo el orden de diseño, puesta en marcha y evaluación del sistema. El Capítulo~\ref{sec:estado_arte} reúne los fundamentos técnicos de las herramientas y algoritmos de SLAM, navegación y evaluación utilizados. El Capítulo~\ref{sec:arquitectura_entorno} detalla el hardware de la estación de trabajo, el reparto de contenedores Docker y las pruebas preliminares de capacidad gráfica. El Capítulo~\ref{sec:desarrollo} documenta la implementación progresiva del espacio de trabajo ROS~2 y su acoplamiento con Isaac Sim, comenzando por el paquete base \texttt{tfg\_ros2\_core}. Por último, los Capítulos~\ref{sec:evaluacion} y~\ref{sec:conclusiones} establecen el protocolo experimental de comparación y recogen las conclusiones y líneas futuras derivadas del estudio.
+
+\positinconcluso{Añadir al final de la redacción los números de página o detalles concretos de los anexos técnicos (archivos de lanzamiento, parámetros completos de calibración y guiones de evaluación con \texttt{evo}) si se decide incluir apéndices.}

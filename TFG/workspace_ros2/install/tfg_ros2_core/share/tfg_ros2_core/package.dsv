@@ -1,9 +1,8 @@
-source;share/tfg_ros2_core/hook/pythonpath.ps1
-source;share/tfg_ros2_core/hook/pythonpath.dsv
-source;share/tfg_ros2_core/hook/pythonpath.sh
-source;share/tfg_ros2_core/hook/ament_prefix_path.ps1
-source;share/tfg_ros2_core/hook/ament_prefix_path.dsv
-source;share/tfg_ros2_core/hook/ament_prefix_path.sh
-source;../../build/tfg_ros2_core/share/tfg_ros2_core/hook/pythonpath_develop.ps1
-source;../../build/tfg_ros2_core/share/tfg_ros2_core/hook/pythonpath_develop.dsv
-source;../../build/tfg_ros2_core/share/tfg_ros2_core/hook/pythonpath_develop.sh
+source;share/tfg_ros2_core/hook/cmake_prefix_path.ps1
+source;share/tfg_ros2_core/hook/cmake_prefix_path.dsv
+source;share/tfg_ros2_core/hook/cmake_prefix_path.sh
+source;share/tfg_ros2_core/local_setup.bash
+source;share/tfg_ros2_core/local_setup.dsv
+source;share/tfg_ros2_core/local_setup.ps1
+source;share/tfg_ros2_core/local_setup.sh
+source;share/tfg_ros2_core/local_setup.zsh

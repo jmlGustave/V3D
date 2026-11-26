@@ -1,0 +1,50 @@
+\chapter{Evaluación experimental y resultados}
+\label{sec:evaluacion}
+
+\section{Protocolo de evaluación y métricas con \texttt{evo}}
+\label{sec:protocolo_evaluacion}
+
+Para garantizar una comparación justa entre \texttt{ORB-SLAM3} (CPU) e \texttt{Isaac cuVSLAM} (GPU), todas las ejecuciones experimentales se registrarán mediante \texttt{ros2 bag record} capturando simultáneamente los flujos del par estéreo, el reloj simulado \texttt{/clock}, las poses estimadas por cada algoritmo y la referencia exacta publicada en \texttt{/ground\_truth/odom}. De este modo, las trayectorias se analizan fuera de línea con \texttt{evo} \parencite{grupp2017evo} aplicando las definiciones de ATE y RPE de \textcite{sturm2012benchmark}.
+
+Como regla metodológica obligatoria, cualquier medición de tasa de fotogramas, latencia por ciclo o consumo de memoria se efectuará con la generación artificial de fotogramas desactivada (\textit{DLSS Frame Generation} con multiplicador unitario), asegurando que los valores registrados correspondan a fotogramas reales renderizados y procesados por el sistema de percepción.
+
+\positinconcluso{Especificar en esta sección los escenarios de prueba definitivos (almacén industrial optimizado y espacio abierto), la longitud de las trayectorias y los comandos exactos de \texttt{evo\_ape} y \texttt{evo\_rpe} utilizados.}
+
+\section{Comparativa cuantitativa: \texttt{ORB-SLAM3} frente a \texttt{Isaac cuVSLAM}}
+\label{sec:comparativa_slam}
+
+La Tabla~\ref{tab:comparativa_slam} deja preparada la estructura comparativa de precisión y consumo computacional entre ambos algoritmos. Las celdas permanecerán con marcadores provisionales hasta completar las campañas de simulación sobre los escenarios finales.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Plantilla comparativa de precisión y rendimiento entre \texttt{ORB-SLAM3} e \texttt{Isaac cuVSLAM}.}
+  \label{tab:comparativa_slam}
+  \begin{tabular}{llcc}
+    \toprule
+    Escenario & Métrica & \texttt{ORB-SLAM3} (CPU) & \texttt{Isaac cuVSLAM} (GPU) \\
+    \midrule
+    Almacén industrial & ATE RMSE [\unit{\meter}] & [PENDIENTE] & [PENDIENTE] \\
+    Almacén industrial & RPE traslacional [\unit{\meter}] & [PENDIENTE] & [PENDIENTE] \\
+    Almacén industrial & Tasa real [\unit{\fps}] & [PENDIENTE] & [PENDIENTE] \\
+    Almacén industrial & Uso CPU / VRAM & [PENDIENTE] & [PENDIENTE] \\
+    \midrule
+    Espacio abierto & ATE RMSE [\unit{\meter}] & [PENDIENTE] & [PENDIENTE] \\
+    Espacio abierto & RPE traslacional [\unit{\meter}] & [PENDIENTE] & [PENDIENTE] \\
+    Espacio abierto & Tasa real [\unit{\fps}] & [PENDIENTE] & [PENDIENTE] \\
+    Espacio abierto & Uso CPU / VRAM & [PENDIENTE] & [PENDIENTE] \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\positdato{Rellenar la Tabla~\ref{tab:comparativa_slam} con las métricas reales exportadas por \texttt{evo} y los registros de telemetría de CPU/VRAM tras ejecutar los experimentos en almacén industrial y espacio abierto.}
+
+\positinconcluso{Incluir gráficas de trayectorias superpuestas (estimada frente a \textit{ground truth}) y distribución temporal del error ATE generadas directamente con \texttt{evo}.}
+
+\section{Validación \textit{Sim-to-Real}}
+\label{sec:sim_to_real}
+
+El traslado de los algoritmos validados en Isaac Sim hacia hardware físico del laboratorio de la UPV se planifica en dos etapas diferenciadas: una primera fase de validación planar (3-DoF) sobre TurtleBot3 y una segunda fase en seis grados de libertad (6-DoF) sobre plataforma aérea.
+
+\positinconcluso{Documentar en este apartado la configuración física de sensores en laboratorio, el ajuste entre la cámara real y el modelo simulado, y las métricas obtenidas frente al sistema de referencia disponible.}
+
+\positrevision{Confirmar con el tutor el método de referencia (\textit{ground truth}) disponible en el laboratorio real de la UPV para evaluar la Fase~1 y la Fase~2.}

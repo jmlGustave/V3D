@@ -1,0 +1,71 @@
+\chapter{Arquitectura del sistema y entorno de simulación}
+\label{sec:arquitectura_entorno}
+
+\section{Estación de trabajo y reparto de recursos}
+\label{sec:hardware}
+
+Tanto la simulación fotorrealista como los módulos de SLAM visual y navegación se ejecutan en una única estación de trabajo local bajo Arch Linux (núcleo~7.1.9). Dado que Isaac Sim y \texttt{cuVSLAM} compiten por la memoria y los núcleos de cálculo de la GPU mientras \texttt{ORB-SLAM3}, el filtrado de nubes de puntos y \texttt{Nav2} hacen uso intensivo de la CPU, el reparto explícito de cargas resulta necesario para evitar cuellos de botella durante los ensayos. La Tabla~\ref{tab:hardware} resume las especificaciones reales del equipo y la función asignada a cada componente.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Especificaciones del hardware de desarrollo y asignación de carga computacional.}
+  \label{tab:hardware}
+  \begin{tabular}{llp{6.2cm}}
+    \toprule
+    Componente & Especificación exacta & Carga asignada en la arquitectura \\
+    \midrule
+    Procesador (CPU) & Intel Core Ultra 7 265K (\num{20} hilos) & Física PhysX del simulador, extracción ORB y optimización en \texttt{ORB-SLAM3}, filtrado PCL y planificadores \texttt{Nav2}. \\
+    Tarjeta gráfica (GPU) & NVIDIA GeForce RTX 5060 Ti (\qty{16}{\giga\byte} VRAM) & Renderizado con trazado de rayos (\textit{RTX Real-Time 2.0}) en Isaac Sim e inferencia CUDA de \texttt{Isaac cuVSLAM}. \\
+    Memoria principal (RAM) & \qty{64}{\giga\byte} DDR5 & Alojamiento simultáneo de escenas OpenUSD, contenedores Docker y buffers de grabación \texttt{rosbag2}. \\
+    Sistema operativo anfitrión & Arch Linux (Kernel 7.1.9) & Gestión de contenedores Docker, acceso gráfico X11 y entorno de desarrollo local. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Arquitectura de contenedores Docker y comunicaciones DDS}
+\label{sec:docker_dds}
+
+Para evitar conflictos entre las dependencias de Python y CUDA de NVIDIA Isaac Sim~6.2 y las librerías de ROS~2 Humble, la arquitectura definida en \texttt{docker-compose.yml} separa ambos entornos en dos contenedores aislados: \texttt{tfg\_isaac\_sim}, basado en la imagen \texttt{nvcr.io/nvidia/isaac-sim:6.2.0.1} con acceso directo a la GPU NVIDIA, y \texttt{tfg\_ros2\_core}, basado en \texttt{osrf/ros:humble-desktop}. Ambos servicios comparten la pila de red del sistema anfitrión mediante la configuración \texttt{network\_mode} en modo \textit{host} con el fin de permitir el intercambio directo de paquetes DDS sin la latencia ni la complejidad de enrutado multidifusión que introduce una red virtual tipo \textit{bridge}.
+
+El espacio de trabajo de ROS~2 se monta de forma persistente desde la carpeta local \texttt{./workspace\_ros2} hacia \texttt{/colcon\_ws} dentro de \texttt{tfg\_ros2\_core}, mientras que las escenas y grafos de simulación se enlazan desde \texttt{./escenarios\_isaac} hacia \texttt{/isaac-workspace}. Esta separación establece una frontera operativa clara que conviene tener presente durante el desarrollo: todo el código fuente escrito en \texttt{/colcon\_ws} persiste en el disco del anfitrión ante un reinicio completo con \texttt{docker-compose down}, mientras que los paquetes instalados manualmente dentro del contenedor mediante \texttt{apt-get} o las modificaciones en \texttt{\textasciitilde/.bashrc} residen en la capa efímera del contenedor y se pierden si este se destruye y recrea.
+
+De forma similar, el comando de arranque del servicio \texttt{ros2\_workspace} carga \texttt{/opt/ros/humble/setup.bash} únicamente sobre el proceso principal \texttt{tail -f /dev/null}. Cualquier terminal interactiva abierta posteriormente con \texttt{docker exec} inicia un intérprete limpio que no hereda esas variables de entorno, por lo que exige cargar explícitamente el entorno base de Humble y el \textit{overlay} compilado en \texttt{/colcon\_ws/install/setup.bash}.
+
+\positrevision{Valorar en una fase posterior la conveniencia de crear un \texttt{Dockerfile} propio sobre \texttt{osrf/ros:humble-desktop} que deje preinstalados \texttt{colcon}, \texttt{teleop\_twist\_keyboard} y las dependencias de SLAM para eliminar instalaciones manuales tras recrear el contenedor.}
+
+Al auditar la configuración actual de \texttt{docker-compose.yml} se detectó además una asimetría en el dominio DDS: el contenedor \texttt{tfg\_ros2\_core} declara \texttt{ROS\_DOMAIN\_ID=42}, mientras que \texttt{tfg\_isaac\_sim} omite dicha variable y arrancaría por defecto en el dominio~\num{0}. En un entorno aislado de ROS~2 este detalle no bloquea el trabajo inicial, pero antes de enlazar el puente de simulación será necesario declarar \texttt{ROS\_DOMAIN\_ID=42} también en el servicio de Isaac Sim para que ambos extremos descubran los tópicos \texttt{/clock}, \texttt{/cmd\_vel}, \texttt{/camera/*}, \texttt{/tf} y \texttt{/ground\_truth/odom}.
+
+\positinconcluso{Incorporar aquí el diagrama vectorial de arquitectura actualizado (corrigiendo los rótulos heredados de \texttt{Arquitectura.md} para reflejar \texttt{/clock}, \texttt{/ground\_truth/odom} y la entrada de consignas de velocidad diferencial en lugar de pares motores).}
+
+\section{Validación preliminar de capacidad gráfica}
+\label{sec:benchmark_hw}
+
+Antes de implementar el puente completo hacia ROS~2 se ejecutaron dos pruebas preliminares sobre Isaac Sim~6.2.0 para comprobar si la RTX~5060~Ti disponía de margen temporal y de memoria suficiente para renderizar dos cámaras de alta definición simultáneamente a \qty{30}{\hertz}. El primer ensayo (Escenario~A) midió el visor interactivo base con el modelo articulado cargado bajo el motor \textit{RTX Real-Time 2.0} a \num{1280}\(\times\)\num{720} píxeles sin carga de cámaras ROS~2. El segundo ensayo (Escenario~B) empleó el servicio oficial \texttt{isaacsim.benchmark.services} (\texttt{benchmark\_camera}) renderizando un par estéreo de dos cámaras a \num{1280}\(\times\)\num{720} píxeles durante \num{599} ciclos de actualización sobre un paso físico de \qty{60}{\hertz}.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados preliminares de rendimiento gráfico en Isaac Sim~6.2.0 sobre la RTX~5060~Ti.}
+  \label{tab:benchmark_hw}
+  \begin{tabular}{llp{5.5cm}}
+    \toprule
+    Escenario y métrica & Valor medido & Lectura técnica respecto al objetivo (\qty{30}{\hertz}) \\
+    \midrule
+    Escenario~A: Tasa de fotogramas & \qty{110.13}{\fps} & Margen cercano a \num{3.7} veces sobre la frecuencia objetivo. \\
+    Escenario~A: \textit{Frame time} total & \qty{8.20}{\milli\second} & Latencia base reducida en el visor sin publicación estéreo. \\
+    Escenario~A: Consumo VRAM / RAM & \qty{888.8}{\mebibyte} / \qty{8.2}{\gibibyte} & \qty{13.2}{\gibibyte} de VRAM y \qty{50.8}{\gibibyte} de RAM disponibles. \\
+    \midrule
+    Escenario~B: Duración carga / simulación & \qty{7836.99}{\milli\second} / \qty{9103.99}{\milli\second} & \num{599} ciclos de actualización tras carga de \textit{shaders}. \\
+    Escenario~B: Tasa media de fotogramas & \qty{65.92}{\fps} & Supera en más del doble los \qty{30}{\fps} exigidos al par estéreo. \\
+    Escenario~B: \textit{Real Time Factor} (RTF) & \num{1.098} & Ejecución por encima del tiempo real sobre \textit{tick} físico de \qty{60}{\hertz}. \\
+    Escenario~B: \textit{App Update Frametime} & \qty{15.17 \pm 0.90}{\milli\second} & Por debajo del presupuesto de \qty{33.3}{\milli\second} por fotograma. \\
+    Escenario~B: \textit{Physics Frametime} & \qty{0.27 \pm 0.07}{\milli\second} & Sobrecarga física reducida en el bucle principal. \\
+    Escenario~B: VRAM (carga / simulación) & \qty{1.407}{\giga\byte} / \qty{2.100}{\giga\byte} & Alrededor de \qty{13.9}{\giga\byte} libres para escena industrial y \texttt{cuVSLAM}. \\
+    Escenario~B: RAM RSS / USS (simulación) & \qty{8.307}{\giga\byte} / \qty{6.236}{\giga\byte} & Ocupación estable respecto a la fase de carga (\qty{8.268}{\giga\byte} / \qty{6.041}{\giga\byte}). \\
+    Escenario~B: Carga CPU (\num{20} hilos) & \qty{249.38 \pm 36.51}{\percent} & Equivalente a unos \num{2.5} núcleos medios (pico de \qty{355.7}{\percent}). \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Los datos de la Tabla~\ref{tab:benchmark_hw} muestran que incluso con dos cámaras HD activas de forma simultánea el tiempo medio de actualización (\qty{15.17}{\milli\second}) se mantiene en menos de la mitad del límite de \qty{33.3}{\milli\second} necesario para sostener \qty{30}{\hertz} sin pérdida de fotogramas, conservando casi \qty{13.9}{\giga\byte} de VRAM libres para añadir la geometría del almacén industrial y el pipeline CUDA de \texttt{cuVSLAM}.
+
+\positrevision{Confirmar la fecha exacta en la que se capturaron los ensayos del Escenario~A y Escenario~B y verificar que se midieron sin generación sintética de fotogramas (\textit{DLSS Frame Generation} desactivado); valorar además si incluir el comando exacto de \texttt{isaacsim.benchmark.services} en un anexo.}

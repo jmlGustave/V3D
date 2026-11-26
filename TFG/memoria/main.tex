@@ -1,0 +1,79 @@
+\documentclass[11pt, a4paper, oneside]{report}
+
+\input{configuracion/paquetes}
+\input{configuracion/posits}
+
+\begin{document}
+
+% ==============================================================================
+% Portada provisional (sustituible por la plantilla oficial de la UPV)
+% ==============================================================================
+\begin{titlepage}
+  \centering
+  \vspace*{1.5cm}
+
+  {\Large\textbf{UNIVERSITAT POLITÈCNICA DE VALÈNCIA}\par}
+  \vspace{0.3cm}
+  {\large Grado en Ingeniería Robótica e Informática Industrial\par}
+  \vspace{0.4cm}
+  {\normalsize Trabajo de Fin de Grado\par}
+
+  \vspace{2.2cm}
+  \rule{\textwidth}{0.8pt}\\[0.5cm]
+  {\LARGE\bfseries Evaluación y Benchmarking de Algoritmos SLAM Visual y Navegación Autónoma mediante Simulación Fotorrealista en NVIDIA Isaac Sim y ROS 2\par}
+  \vspace{0.2cm}
+  \rule{\textwidth}{0.8pt}
+
+  \vspace{2.2cm}
+  \begin{flushleft}
+    \large
+    \textbf{Autor:} Javier Martínez López\\
+    \textbf{Tutor/a:} \textit{[Pendiente de completar]}\\
+    \textbf{Curso académico:} \textit{[Pendiente de completar]}
+  \end{flushleft}
+
+  \vfill
+  \positrevision[inline]{Confirmar el título definitivo de la memoria, añadir el nombre del tutor o cotutor, indicar la escuela y departamento, completar la fecha de defensa y sustituir esta portada provisional por la plantilla institucional oficial de la UPV si se requiere.}
+  \vspace{0.5cm}
+  {\normalsize Valencia, \today\par}
+\end{titlepage}
+
+% ==============================================================================
+% Preliminares e índices
+% ==============================================================================
+\pagenumbering{roman}
+
+\input{capitulos/00_resumen}
+
+\clearpage
+\tableofcontents
+
+\clearpage
+\listoftables
+
+\clearpage
+\listoffigures
+
+\clearpage
+\listadeposits
+
+% ==============================================================================
+% Cuerpo principal de la memoria
+% ==============================================================================
+\clearpage
+\pagenumbering{arabic}
+
+\input{capitulos/01_introduccion}
+\input{capitulos/02_estado_del_arte}
+\input{capitulos/03_arquitectura_y_entorno}
+\input{capitulos/04_desarrollo_implementacion}
+\input{capitulos/05_evaluacion_y_resultados}
+\input{capitulos/06_conclusiones_y_lineas_futuras}
+
+% ==============================================================================
+% Bibliografía (APA 7.ª edición)
+% ==============================================================================
+\clearpage
+\printbibliography[heading=bibintoc, title={Referencias bibliográficas}]
+
+\end{document}

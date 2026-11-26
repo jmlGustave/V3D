@@ -1,1 +1,0 @@
-/colcon_ws/src/tfg_ros2_core/setup.py
