@@ -11,6 +11,7 @@ services:
       - DISPLAY=${DISPLAY}
       - ACCEPT_EULA=Y
       - NVIDIA_DRIVER_CAPABILITIES=all
+      - ROS_DOMAIN_ID=42
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./escenarios_isaac:/isaac-workspace
